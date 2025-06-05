@@ -23,6 +23,10 @@ This project was developed as part of an official internship at **CustomerNode L
 - Minimal, headless-first architecture (UI optional)
 - Open-source and extensible for internal or public use
 
+## 🔥 Demo (Coming Soon)
+
+- No one wants to install a repo without seeing the demo...
+  
 ## 📦 Installation
 
 Install from PyPI:
