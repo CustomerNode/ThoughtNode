@@ -23,7 +23,7 @@ This project was developed as part of an official internship at **CustomerNode L
 - Minimal, headless-first architecture (UI optional)
 - Open-source and extensible for internal or public use
 
-## 📦 Installation (COMING SOON)
+## 📦 Installation
 
 Install from PyPI:
 
@@ -36,6 +36,8 @@ Or install from source:
 ```
 git clone https://github.com/CustomerNode/thoughtnode.git
 cd thoughtnode
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
