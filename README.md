@@ -8,7 +8,7 @@ ThoughtNode is a lightweight, open-source Python package that delivers curated, 
 
 This project was developed as part of an official internship at **CustomerNode LLC**.
 
-- **Lead Developer**: Colin [Last Name]
+- **Lead Developer**: Colin Calvetti
 - **Mentor**: Michael Michael ([michaelcantow@customernode.com](mailto:michaelcantow@customernode.com))
 - **Sponsor**: [CustomerNode LLC](https://customernode.com)
 - **License**: MIT (see [`LICENSE`](LICENSE))
