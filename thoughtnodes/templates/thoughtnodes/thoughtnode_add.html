@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Create Thoughtnode
+{% endblock %}
+
+{% block content %}
+    <h1>Create Thoughtnode</h1>
+    <form class="thoughtnodeform" action="{% url 'thoughtnodes:addthoughtnode' %}" method="post">
+        {% csrf_token %}
+        {{form}}
+        <button class="thoughtnodeformbutton">Save</button>
+    </form>
+{% endblock %}

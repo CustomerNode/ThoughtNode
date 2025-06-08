@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {% block title %}
+            Customer Node
+        {% endblock %}
+    </title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <script src="{% static 'js/main.js' %}" defer></script>
+</head>
+<body>
+    <nav class="mynavbar">
+        <a class="homebutton" href="/">Customer Node</a>
+        {% if user.is_authenticated %}
+            <a class="profilebutton" href="{% url 'profiles:profile' %}">{{user.username}}</a>
+            <span style="font-size: 25px; padding-top: 1px;">|</span>
+            <form style="padding-left: 10px;" action="{% url 'profiles:logout' %}" method="post">
+                {% csrf_token %}
+                <button class="logoutbutton">Logout</button>
+            </form>
+        {% else %}
+            <a class="registerbutton" href="{% url 'profiles:register' %}">Register</a>
+            <span style="font-size: 25px; padding-top: 1px;">|</span>
+            <a class="loginbutton" href="{% url 'profiles:login' %}">Login</a>
+        {% endif %}
+    </nav>
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+</body>
+</html>
