@@ -1,0 +1,1 @@
+APIs and python modules effectively source financial data. Future research will determine the capabilities required and the full capabilities of the various APIs and modules available.

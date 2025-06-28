@@ -23,8 +23,6 @@
                 <button class="logoutbutton">Logout</button>
             </form>
         {% else %}
-            <a class="registerbutton" href="{% url 'profiles:register' %}">Register</a>
-            <span style="font-size: 25px; padding-top: 1px;">|</span>
             <a class="loginbutton" href="{% url 'profiles:login' %}">Login</a>
         {% endif %}
     </nav>

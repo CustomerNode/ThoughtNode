@@ -1,0 +1,1 @@
+All APIs and modules tested have similar funcitonality and can effectively source financial data.

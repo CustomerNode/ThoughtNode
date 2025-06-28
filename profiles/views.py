@@ -4,17 +4,17 @@ from django.contrib.auth import login,logout
 from django.contrib.auth.decorators import login_required
 
 # Create your views here.
-def register_view(request):
-    if(request.method == 'POST'):
-        form = UserCreationForm(request.POST)
-        if(form.is_valid()):
-            login(request,form.save())
-            if('next' in request.POST):
-                return redirect(request.POST.get('next'))
-            return redirect('thoughtnodes:thoughtnodeslist')
-    else:
-        form = UserCreationForm()
-    return render(request,'profiles/register.html',{'form':form})
+# def register_view(request):
+#     if(request.method == 'POST'):
+#         form = UserCreationForm(request.POST)
+#         if(form.is_valid()):
+#             login(request,form.save())
+#             if('next' in request.POST):
+#                 return redirect(request.POST.get('next'))
+#             return redirect('thoughtnodes:thoughtnodeslist')
+#     else:
+#         form = UserCreationForm()
+#     return render(request,'profiles/register.html',{'form':form})
 
 def login_view(request):
     if(request.method == 'POST'):
