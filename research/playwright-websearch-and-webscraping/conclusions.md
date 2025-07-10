@@ -1,0 +1,1 @@
+both playwright and selenium can effectively webscrape
