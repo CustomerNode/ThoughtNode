@@ -218,16 +218,8 @@ async def search_scrape_and_crawl_manager(id,query):
     r1 = Redis.from_url(redis_url)
     redis_url = os.getenv("REDIS_URL","redis://localhost:6379/2")
     r2 = Redis.from_url(redis_url)
-    redislock = None
-    workerlock = None
-    if await r1.exists("redislock"):
-        redislock = (await r1.get("redislock")).decode()
-    else:
-        redislock = Lock(r1,"redislock",timeout=10)
-    if await r1.exists("workerlock"):
-        workerlock = (await r1.get("workerlock")).decode()
-    else:
-        workerlock = Lock(r1,"workerlock",timeout=10)
+    redislock = Lock(r1,"redislock",timeout=10)
+    workerlock = Lock(r1,"workerlock",timeout=10)
     async with workerlock:
         if not await r1.exists("MAX_NUM_WORKERS"):
             await r1.set("MAX_NUM_WORKERS",15)
@@ -285,7 +277,12 @@ def celery_scrape_and_crawl(id,query):
 
 @shared_task
 def celery_chatgpt_summarize(id):
+    redis_url = os.getenv("REDIS_URL","redis://localhost:6379/1")
+    r1 = syncRedis.from_url(redis_url)
     redis_url = os.getenv("REDIS_URL","redis://localhost:6379/2")
-    redisdata = syncRedis.from_url(redis_url)
-    data = redisdata.hgetall(id)
+    r2 = syncRedis.from_url(redis_url)
+    while r1.get("NUM_WORKERS") == "b'0'" or r1.get("NUM_WORKERS") is None:
+        continue
+    data = r2.hgetall(id)
+    print(f"{id}: {str(data)[:250]}")
     # client = OpenAI() # implement ChatGPT summarization
