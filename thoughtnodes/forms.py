@@ -6,7 +6,7 @@ class CreateThoughtnode(forms.ModelForm):
         model = models.Thoughtnode
         fields = [
             'title',
-            'description',
+            'query',
             'prompt',
             'frequency',
         ]

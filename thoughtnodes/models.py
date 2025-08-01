@@ -11,7 +11,7 @@ frequency_options = (
 )
 class Thoughtnode(models.Model):
     title = models.CharField(max_length=50)
-    description = models.TextField()
+    query = models.TextField()
     prompt = models.TextField()
     frequency = models.CharField(max_length=7,choices=frequency_options)
     slug = models.SlugField()

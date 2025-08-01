@@ -7,7 +7,7 @@
 {% block content %}
     <h1>{{thoughtnode.title}}</h1>
     <p>{{thoughtnode.frequency}}</p>
-    <p>{{thoughtnode.description}}</p>
+    <p>{{thoughtnode.query}}</p>
     <p>{{thoughtnode.prompt}}</p>
     <form action="{% url 'thoughtnodes:runthoughtnode' slug=thoughtnode.slug %}" method="post">
         {% csrf_token %}
