@@ -9,7 +9,7 @@ from urllib.parse import urlparse,urlunparse,quote
 from PyPDF2 import PdfReader
 from io import BytesIO
 from openai import OpenAI
-from celery import shared_task
+from celery import shared_task,chain
 from asgiref.sync import async_to_sync
 from redis import Redis as syncRedis
 from redis.asyncio import Redis
@@ -70,14 +70,13 @@ def thoughtnode_delete(request,slug):
 def thoughtnode_run(request,slug): # remove run button and run with scheduler
     if(request.method == 'POST'):
         thoughtnode = Thoughtnode.objects.get(user=request.user,slug=slug)
-        # Webscrape/crawl
-        celery_scrape_and_crawl.delay(slug,thoughtnode.query)
-
-        #ChatGPT Summarization/Analysis
-        celery_chatgpt_summarize.delay(slug)
-
-        # Send Email
-
+        chain(
+            # Web search scrape and crawl
+            celery_scrape_and_crawl.s(slug,thoughtnode.query),
+            #ChatGPT Summarization/Analysis
+            celery_chatgpt_summarize.s(slug)
+            # Send Email
+        )()
         return redirect('thoughtnodes:thoughtnodeslist')
 
 def sanitize_link(link):
@@ -85,7 +84,7 @@ def sanitize_link(link):
     clean_url = urlunparse(parsed._replace(fragment=""))
     return hashlib.sha256(clean_url.encode('utf-8')).hexdigest()
 
-async def readPDF(session,link,r2,id):
+async def readPDF(session,link,r1,r2,id):
     try:
         async with session.get(link) as response:
             content = await response.read()
@@ -98,9 +97,10 @@ async def readPDF(session,link,r2,id):
                 if await r2.hexists(additionalid.decode(),sanitize_link(link)) and (await r2.hget(additionalid.decode(),sanitize_link(link))).decode() == "":
                     await r2.hset(id,sanitize_link(link),pdfcontent)
     except Exception as e:
+        await r1.sadd("badsites",urlparse(link).scheme+"://"+urlparse(link).netloc)
         raise Exception(f"read pdf fail: {link}: {e}")
 
-async def playwright_webscrape(context,link,r2,id):
+async def playwright_webscrape(context,link,r1,r2,id):
     pdf_links,img_links,links = [],[],[]
     page = await context.new_page()
     try:
@@ -142,6 +142,7 @@ async def playwright_webscrape(context,link,r2,id):
 
         return pdf_links,img_links,links
     except Exception as e:
+        await r1.sadd("badsites",urlparse(link).scheme+"://"+urlparse(link).netloc)
         raise Exception(f"webscrape fail: {link}: {str(e).splitlines()[0]}")
     finally:
         await page.close()
@@ -159,6 +160,47 @@ async def webscrape_allowed(session,link):
             return rp.can_fetch("*",link)
     except Exception as e:
         return f"robots.txt fail: {robots_url}: {repr(e)}"
+
+async def duckduckgo_web_search(query,num_results=10):
+    redis_url = os.getenv("REDIS_URL","redis://localhost:6379/1")
+    r1 = Redis.from_url(redis_url)
+    url = "https://duckduckgo.com/?q="
+    query = query.replace(" ","+")
+    url += query
+    async with async_playwright() as p:
+        browser = await p.firefox.launch(headless=True)
+        context = await browser.new_context(
+            user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"),
+            viewport={"width": 1366, "height": 768},
+            locale="en-US",
+            color_scheme="light",
+            timezone_id="America/New_York",
+            geolocation={"longitude": -73.935242, "latitude": 40.730610}, # New York City
+            permissions=["geolocation"],
+            device_scale_factor=1.0,
+            is_mobile=False,
+            has_touch=False,
+            java_script_enabled=True,
+        )
+        page = await context.new_page()
+        await page.goto(url,wait_until="load",timeout=15000)
+        await asyncio.sleep(.5)
+        links = []
+        while len(links) < num_results:
+            pagebody = await page.wait_for_selector("body")
+            await page.click("button[id='more-results']")
+            bodylinks = await pagebody.query_selector("ol")
+            urllinks = await bodylinks.query_selector_all("a")
+            for link in urllinks:
+                link = await link.get_attribute("href")
+                if link is not None and link not in links and link[:4] == "http" and not await r1.sismember("badsites",urlparse(link).scheme+"://"+urlparse(link).netloc):
+                    links.append(link)
+        if len(links) > num_results:
+            links = links[:num_results]
+        await page.close()
+        await context.close()
+        await browser.close()
+    return links
 
 def google_web_search(query,api_key,cse_id,num_results=10):
     url = 'https://www.googleapis.com/customsearch/v1'
@@ -197,14 +239,15 @@ async def scrape_and_crawl_worker(session,context,r1,r2,id,redislock,workerlock)
                     await r1.sadd("visitedlinks",link)
             allowed = await webscrape_allowed(session,link)
             if not allowed:
+                await r1.sadd("badsites",urlparse(link).scheme+"://"+urlparse(link).netloc)
                 continue
             else:
                 if not isinstance(allowed,bool):
                     print(allowed)
                 if ".pdf" in link.lower():
-                    await readPDF(session,link,r2,id)
+                    await readPDF(session,link,r1,r2,id)
                 else:
-                    pdf_links,img_links,links = await playwright_webscrape(context,link,r2,id)
+                    pdf_links,img_links,links = await playwright_webscrape(context,link,r1,r2,id)
                     for pdf_link in pdf_links:
                         async with redislock:
                             if not await r1.sismember("visitedlinks",pdf_link):
@@ -222,13 +265,18 @@ async def search_scrape_and_crawl_manager(id,query):
     workerlock = Lock(r1,"workerlock",timeout=10)
     async with workerlock:
         if not await r1.exists("MAX_NUM_WORKERS"):
-            await r1.set("MAX_NUM_WORKERS",15)
+            await r1.set("MAX_NUM_WORKERS",25)
         if not await r1.exists("NUM_WORKERS"):
             await r1.set("NUM_WORKERS",0)
     tasks = []
 
-    links = google_web_search(query,os.getenv('GOOGLE_API_KEY'),os.getenv('GOOGLE_CSE_ID'))
-    print(f"{id}: {links}")
+    links = []
+    try:
+        # links = google_web_search(query,os.getenv('GOOGLE_API_KEY'),os.getenv('GOOGLE_CSE_ID'))
+        links = await duckduckgo_web_search(query)
+        print(f"{id}: {links}")
+    except Exception as e:
+        print(e)
     for link in links:
         async with redislock:
             if await r1.sismember("visitedlinks",link):
@@ -270,19 +318,22 @@ async def search_scrape_and_crawl_manager(id,query):
                 await asyncio.gather(*tasks,return_exceptions=True)
             await context.close()
             await browser.close()
+    valspopulated = 0
+    while valspopulated != await r2.hlen(id):
+        valspopulated = 0
+        for val in await r2.hvals(id):
+            if val.decode() != "":
+                valspopulated += 1
+        await asyncio.sleep(1)
 
 @shared_task
 def celery_scrape_and_crawl(id,query):
     async_to_sync(search_scrape_and_crawl_manager)(id,query)
 
 @shared_task
-def celery_chatgpt_summarize(id):
-    redis_url = os.getenv("REDIS_URL","redis://localhost:6379/1")
-    r1 = syncRedis.from_url(redis_url)
+def celery_chatgpt_summarize(_,id):
     redis_url = os.getenv("REDIS_URL","redis://localhost:6379/2")
-    r2 = syncRedis.from_url(redis_url)
-    while r1.get("NUM_WORKERS") == "b'0'" or r1.get("NUM_WORKERS") is None:
-        continue
-    data = r2.hgetall(id)
+    redisdata = syncRedis.from_url(redis_url)
+    data = redisdata.hgetall(id)
     print(f"{id}: {str(data)[:250]}")
     # client = OpenAI() # implement ChatGPT summarization
