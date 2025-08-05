@@ -13,10 +13,6 @@
     <br>
     {% for thoughtnode in thoughtnodes %}
         <article>
-            <form style="display: inline;" action="{% url 'thoughtnodes:runthoughtnode' slug=thoughtnode.slug %}" method="post">
-                {% csrf_token %}
-                <button>Run</button>
-            </form>
             <a style="text-decoration: none; color: black;" href="{% url 'thoughtnodes:viewthoughtnode' slug=thoughtnode.slug %}">
                 <h2 style="display: inline-block;">{{thoughtnode.title}}:</h2>
                 <h3 style="display: inline-block;">{{thoughtnode.query | truncatechars:25}}</h3>

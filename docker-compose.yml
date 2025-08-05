@@ -1,0 +1,32 @@
+name: docker-project
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: docker-image
+    container_name: docker-container
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - celery
+  redis:
+    image: redis:8.0.3
+    container_name: redis-container
+    ports:
+      - "6379:6379"
+  celery:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: docker-image
+    container_name: celery-container
+    command: celery -A customernodeproject worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis

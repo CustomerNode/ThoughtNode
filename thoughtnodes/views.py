@@ -14,6 +14,8 @@ from asgiref.sync import async_to_sync
 from redis import Redis as syncRedis
 from redis.asyncio import Redis
 from redis.asyncio.lock import Lock
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 import requests
 import asyncio
 import aiohttp
@@ -29,7 +31,7 @@ def thoughtnodes_list(request):
 
 @login_required(login_url='/profiles/login')
 def thoughtnode_view(request,slug):
-    thoughtnode = Thoughtnode.objects.get(user=request.user,slug=slug)
+    thoughtnode = Thoughtnode.objects.get(slug=slug)
     return render(request,'thoughtnodes/thoughtnode_view.html',{'thoughtnode':thoughtnode})
 
 @login_required(login_url='/profiles/login')
@@ -48,7 +50,7 @@ def thoughtnode_add(request):
 
 @login_required(login_url='/profiles/login')
 def thoughtnode_edit(request,slug):
-    thoughtnode = Thoughtnode.objects.get(user=request.user,slug=slug)
+    thoughtnode = Thoughtnode.objects.get(slug=slug)
     if(request.method == 'POST'):
         form = forms.CreateThoughtnode(request.POST,instance=thoughtnode)
         if(form.is_valid()):
@@ -62,22 +64,21 @@ def thoughtnode_edit(request,slug):
 @login_required(login_url='/profiles/login')
 def thoughtnode_delete(request,slug):
     if(request.method == 'POST'):
-        thoughtnode = Thoughtnode.objects.get(user=request.user,slug=slug)
+        thoughtnode = Thoughtnode.objects.get(slug=slug)
         thoughtnode.delete()
         return redirect('thoughtnodes:thoughtnodeslist')
 
-@login_required(login_url='/profiles/login')
-def thoughtnode_run(request,slug): # remove run button and run with scheduler
-    if(request.method == 'POST'):
-        thoughtnode = Thoughtnode.objects.get(user=request.user,slug=slug)
-        chain(
-            # Web search scrape and crawl
-            celery_scrape_and_crawl.s(slug,thoughtnode.query),
-            #ChatGPT Summarization/Analysis
-            celery_chatgpt_summarize.s(slug)
-            # Send Email
-        )()
-        return redirect('thoughtnodes:thoughtnodeslist')
+def thoughtnode_run(slug):
+    thoughtnode = Thoughtnode.objects.get(slug=slug)
+    chain(
+        # Web search scrape and crawl
+        celery_scrape_and_crawl.s(slug,thoughtnode.query),
+        #ChatGPT Summarization/Analysis
+        celery_chatgpt_summarize.s(slug),
+        # Send Email
+        celery_send_email.s(slug)
+    )()
+    print(f"thoughtnode (scrape,summarize,email) chain started: {slug}")
 
 def sanitize_link(link):
     parsed = urlparse(link)
@@ -335,5 +336,25 @@ def celery_chatgpt_summarize(_,id):
     redis_url = os.getenv("REDIS_URL","redis://localhost:6379/2")
     redisdata = syncRedis.from_url(redis_url)
     data = redisdata.hgetall(id)
-    print(f"{id}: {str(data)[:250]}")
     # client = OpenAI() # implement ChatGPT summarization
+    return "summarization not yet implemented"
+
+@shared_task
+def celery_send_email(summarization,id):
+    print(f"email sent: {id}: {Thoughtnode.objects.get(slug=id).user.email}")
+    return
+    thoughtnode = Thoughtnode.objects.get(id=id)
+    user_email = thoughtnode.user.email
+    message = Mail(
+        from_email=os.environ.get("SENDGRID_FROM_EMAIL"),
+        to_emails=user_email,
+        subject=thoughtnode.title,
+        plain_text_content=summarization,
+        html_content=""
+    )
+    try:
+        if user_email is not None or user_email != "":
+            sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
+            response = sg.send(message)
+    except Exception as e:
+        print(f"sendgrid fail: {e}")

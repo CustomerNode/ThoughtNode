@@ -9,10 +9,6 @@
     <p>{{thoughtnode.frequency}}</p>
     <p>{{thoughtnode.query}}</p>
     <p>{{thoughtnode.prompt}}</p>
-    <form action="{% url 'thoughtnodes:runthoughtnode' slug=thoughtnode.slug %}" method="post">
-        {% csrf_token %}
-        <button class="thoughtnodeformbutton">Run</button>
-    </form>
     <form action="{% url 'thoughtnodes:editthoughtnode' slug=thoughtnode.slug %}" method="get">
         {% csrf_token %}
         <button class="thoughtnodeformbutton">Edit</button>
