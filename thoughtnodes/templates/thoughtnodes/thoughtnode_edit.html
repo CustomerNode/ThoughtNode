@@ -11,4 +11,7 @@
         {{form}}
         <button class="thoughtnodeformbutton">Save</button>
     </form>
+    <form action="{% url 'thoughtnodes:viewthoughtnode' slug=thoughtnode.slug %}" method="get">
+        <button class="thoughtnodeformbutton">Cancel</button>
+    </form>
 {% endblock %}

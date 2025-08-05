@@ -68,6 +68,30 @@ def thoughtnode_delete(request,slug):
         thoughtnode.delete()
         return redirect('thoughtnodes:thoughtnodeslist')
 
+@login_required(login_url='/profiles/login')
+def thoughtnode_previous(request,slug):
+    thoughtnodes = Thoughtnode.objects.filter(user=request.user)
+    previous = thoughtnodes.get(slug=slug)
+    for i in range(len(thoughtnodes)):
+        if thoughtnodes[i].slug == slug:
+            if i - 1 == -1:
+                previous = thoughtnodes[len(thoughtnodes) - 1]
+            else:
+                previous = thoughtnodes[i - 1]
+    return redirect('thoughtnodes:viewthoughtnode',previous.slug)
+
+@login_required(login_url='/profiles/login')
+def thoughtnode_next(request,slug):
+    thoughtnodes = Thoughtnode.objects.filter(user=request.user)
+    next = thoughtnodes.get(slug=slug)
+    for i in range(len(thoughtnodes)):
+        if thoughtnodes[i].slug == slug:
+            if i + 1 == len(thoughtnodes):
+                next = thoughtnodes[0]
+            else:
+                next = thoughtnodes[i + 1]
+    return redirect('thoughtnodes:viewthoughtnode',next.slug)
+
 def thoughtnode_run(slug):
     thoughtnode = Thoughtnode.objects.get(slug=slug)
     chain(

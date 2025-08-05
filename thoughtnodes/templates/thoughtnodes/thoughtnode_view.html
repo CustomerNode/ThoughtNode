@@ -5,12 +5,18 @@
 {% endblock %}
 
 {% block content %}
-    <h1>{{thoughtnode.title}}</h1>
+    <h1>{{thoughtnode.title}}<br>
+        <form action="{% url 'thoughtnodes:previousthoughtnode' slug=thoughtnode.slug %}" method="get" style="display: inline;">
+            <button class="thoughtnodeformbutton">&larr;</button>
+        </form>
+        <form action="{% url 'thoughtnodes:nextthoughtnode' slug=thoughtnode.slug %}" method="get" style="display: inline;">
+            <button class="thoughtnodeformbutton">&rarr;</button>
+        </form>
+    </h1>
     <p>{{thoughtnode.frequency}}</p>
     <p>{{thoughtnode.query}}</p>
     <p>{{thoughtnode.prompt}}</p>
     <form action="{% url 'thoughtnodes:editthoughtnode' slug=thoughtnode.slug %}" method="get">
-        {% csrf_token %}
         <button class="thoughtnodeformbutton">Edit</button>
     </form>
     <form action="{% url 'thoughtnodes:deletethoughtnode' slug=thoughtnode.slug %}" method="post">

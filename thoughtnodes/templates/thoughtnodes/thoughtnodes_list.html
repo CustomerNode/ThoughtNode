@@ -7,7 +7,6 @@
 {% block content %}
     <h1>Thoughtnodes</h1>
     <form action="{% url 'thoughtnodes:addthoughtnode' %}" method="get">
-        {% csrf_token %}
         <button class="addthoughtnodebutton">+</button>
     </form>
     <br>

@@ -11,4 +11,7 @@
         {{form}}
         <button class="thoughtnodeformbutton">Save</button>
     </form>
+    <form action="{% url 'thoughtnodes:thoughtnodeslist' %}" method="get">
+        <button class="thoughtnodeformbutton">Cancel</button>
+    </form>
 {% endblock %}
